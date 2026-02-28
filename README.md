@@ -74,6 +74,15 @@ pip uninstall ai-search-mcp
 
 # uvx 不需要卸载，每次运行都是独立环境
 
+## 命令行工具
+
+```bash
+# 查看版本
+ai-search-mcp --version
+
+# 验证配置
+ai-search-mcp --validate-config
+```
 
 #### 跨平台编译
 
@@ -199,6 +208,8 @@ ai-search-mcp --validate-config
 
 ## 开发
 
+### 本地开发
+
 ```bash
 # 克隆仓库
 git clone https://github.com/lianwusuoai/ai-search-mcp.git
@@ -212,6 +223,49 @@ cargo test
 
 # 发布构建
 cargo build --release
+```
+
+### 构建 Python 包
+
+```bash
+# 1. 编译 Rust 并复制二进制文件
+python build.py
+
+# 2. 构建 Python 包
+pip install build
+python -m build
+
+# 3. 本地测试安装
+pip install dist/ai_search_mcp-*.whl
+```
+
+### 发布到 PyPI
+
+项目使用 GitHub Actions 自动构建多平台二进制文件并发布到 PyPI。
+
+**手动发布**：
+```bash
+# 1. 确保所有平台的二进制文件都在 ai_search_mcp/bin/ 目录
+# - ai-search-mcp.exe (Windows)
+# - ai-search-mcp-linux (Linux)
+# - ai-search-mcp-macos (macOS)
+
+# 2. 构建并上传
+pip install build twine
+python -m build
+twine upload dist/*
+```
+
+**自动发布**（推荐）：
+```bash
+# 创建并推送 tag
+git tag v1.2.1
+git push origin v1.2.1
+
+# GitHub Actions 会自动：
+# 1. 在 Windows/Linux/macOS 上编译二进制文件
+# 2. 打包所有平台的二进制文件
+# 3. 发布到 PyPI
 ```
 
 ## 许可证

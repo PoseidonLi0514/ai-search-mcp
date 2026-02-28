@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "ai-search-mcp"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
  "anyhow",
  "chrono",
