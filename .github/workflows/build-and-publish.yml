@@ -79,12 +79,16 @@ jobs:
           cp artifacts/binary-macos-latest/ai-search-mcp-macos ai_search_mcp/bin/
           chmod +x ai_search_mcp/bin/ai-search-mcp-linux
           chmod +x ai_search_mcp/bin/ai-search-mcp-macos
+          ls -lh ai_search_mcp/bin/
 
       - name: Install build tools
         run: pip install build twine
 
       - name: Build package
-        run: python -m build
+        run: python -m build --wheel
+
+      - name: List dist files
+        run: ls -lh dist/
 
       - name: Publish to PyPI
         env:
