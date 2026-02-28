@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 1.0.0'
+        version='%(prog)s 1.1.0'
     )
     parser.add_argument(
         '--validate-config',
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def mask_sensitive(value: str, show_chars: int = 4) -> str:
+def mask_sensitive(value: str, show_chars: int = 2) -> str:
     """
     遮蔽敏感信息
     
@@ -51,15 +51,10 @@ def mask_sensitive(value: str, show_chars: int = 4) -> str:
     Returns:
         遮蔽后的字符串
     """
-    # 短于 12 字符的完全遮蔽
-    if len(value) < 12:
+    # 所有长度的密钥都只显示前后各 2 个字符，确保安全
+    if len(value) <= 4:
         return '***'
-    # 长度在 12-16 之间，只显示前后各 2 个字符
-    elif len(value) <= 16:
-        return f"{value[:2]}...{value[-2:]}"
-    # 长度超过 16，显示前后各 4 个字符
-    else:
-        return f"{value[:show_chars]}...{value[-show_chars:]}"
+    return f"{value[:show_chars]}...{value[-show_chars:]}"
 
 
 def show_config_summary(config: AIConfig) -> None:

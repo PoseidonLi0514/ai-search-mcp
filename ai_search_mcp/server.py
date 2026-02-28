@@ -45,7 +45,7 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
         request: MCP 初始化请求
         
     Returns:
-        服务器能力和信息
+        Dict[str, Any]: 服务器能力和信息
     """
     return {
         'protocolVersion': '2024-11-05',
@@ -54,7 +54,7 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
         },
         'serverInfo': {
             'name': 'ai-search-mcp',
-            'version': '1.0.0'
+            'version': '1.1.0'
         }
     }
 
@@ -68,23 +68,31 @@ def handle_tools_list(request: Dict[str, Any], config: AIConfig) -> Dict[str, An
         config: AI 配置对象
         
     Returns:
-        可用工具列表
+        Dict[str, Any]: 可用工具列表
     """
+    # 根据 max_query_plan 的值生成不同的描述
+    if config.max_query_plan == 1:
+        description = f'使用 AI 模型 ({config.model_id}) 进行网络搜索。直接搜索用户查询，返回详细的搜索结果。'
+    else:
+        description = f'使用 AI 模型 ({config.model_id}) 进行网络搜索。\n\n多维度搜索模式：首次调用会返回拆分要求，要求你将查询拆分成 {config.max_query_plan} 个子问题，然后并行调用本工具 {config.max_query_plan} 次（子查询需加 [SUB_QUERY] 前缀防止套娃）。'
+    
     return {
-        'tools': [{
-            'name': 'search_with_ai',
-            'description': f'使用 AI 模型 ({config.model_id}) 进行联网搜索,搜索效果优于普通搜索引擎。适用于需要最新信息、深度分析或复杂问题的场景。',
-            'inputSchema': {
-                'type': 'object',
-                'properties': {
-                    'query': {
-                        'type': 'string',
-                        'description': '搜索查询内容,可以是问题、关键词或需要查找的信息'
-                    }
-                },
-                'required': ['query']
+        'tools': [
+            {
+                'name': 'web_search',
+                'description': description,
+                'inputSchema': {
+                    'type': 'object',
+                    'properties': {
+                        'query': {
+                            'type': 'string',
+                            'description': '搜索查询内容。子查询需加 [SUB_QUERY] 前缀。'
+                        }
+                    },
+                    'required': ['query']
+                }
             }
-        }]
+        ]
     }
 
 
@@ -97,14 +105,15 @@ def handle_tools_call(request: Dict[str, Any], client: AIClient) -> Dict[str, An
         client: AI 客户端实例
         
     Returns:
-        工具执行结果
+        Dict[str, Any]: 工具执行结果
         
     Raises:
         ProtocolError: 未知工具名称
     """
     tool_name = request['params']['name']
-    if tool_name == 'search_with_ai':
-        query = request['params']['arguments']['query']
+    query = request['params']['arguments']['query']
+    
+    if tool_name == 'web_search':
         logger.info(f"搜索查询: {query}")
         result = client.search(query)
         logger.info(f"搜索成功,返回 {len(result)} 字符")
@@ -128,7 +137,7 @@ def handle_request(request: Dict[str, Any], client: AIClient, config: AIConfig) 
         config: AI 配置对象
         
     Returns:
-        请求处理结果
+        Dict[str, Any]: 请求处理结果
         
     Raises:
         ProtocolError: 未知请求方法
@@ -186,12 +195,15 @@ def run_server(config: AIConfig) -> None:
     Args:
         config: AI 配置对象
     """
-    logger.info(f"启动 AI Search MCP Server v1.0.0")
+    setup_logging(level=config.log_level)
+    
+    logger.info(f"启动 AI Search MCP Server v1.1.0")
     logger.info(f"API URL: {config.api_url}")
     logger.info(f"模型: {config.model_id}")
     logger.info(f"流式响应: {config.stream}")
     logger.info(f"超时时间: {config.timeout}秒")
     logger.info(f"过滤思考内容: {config.filter_thinking}")
+    logger.info(f"日志级别: {config.log_level}")
     
     # 使用上下文管理器自动管理资源
     with AIClient(config) as client:

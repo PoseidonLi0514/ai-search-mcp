@@ -8,8 +8,26 @@ from .exceptions import MissingConfigError, InvalidConfigError
 # 常量定义
 MIN_TIMEOUT = 1
 MAX_TIMEOUT = 300
-DEFAULT_TIMEOUT = 60
-DEFAULT_SYSTEM_PROMPT = "你是一个专业的搜索助手,擅长联网搜索并提供准确、详细的答案。"
+DEFAULT_TIMEOUT = 60  # 默认 60 秒，复杂查询建议在配置中设置为 120
+DEFAULT_RETRY_COUNT = 1  # 默认重试 1 次（总共 2 次请求）
+DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_MAX_QUERY_PLAN = 1
+
+DEFAULT_SYSTEM_PROMPT = """你是一个专业的搜索助手,擅长联网搜索并提供准确、详细的答案。
+
+当前时间: {current_time}
+
+搜索策略:
+1. 优先使用最新、权威的信息源
+2. 对于时间敏感的查询,明确标注信息的时间
+3. 提供多个来源的信息进行交叉验证
+4. 对于技术问题,优先参考官方文档和最新版本
+
+输出要求:
+- 直接回答用户问题,避免冗余
+- 标注关键信息的来源 [来源](URL)
+- 对于复杂问题,提供结构化的答案
+- 时间相关信息必须基于上述当前时间判断"""
 
 
 @dataclass
@@ -22,6 +40,9 @@ class AIConfig:
     timeout: int = DEFAULT_TIMEOUT
     stream: bool = True
     filter_thinking: bool = True
+    retry_count: int = DEFAULT_RETRY_COUNT
+    log_level: str = DEFAULT_LOG_LEVEL
+    max_query_plan: int = DEFAULT_MAX_QUERY_PLAN
     
     def validate(self) -> None:
         """
@@ -57,7 +78,10 @@ class AIConfig:
             'system_prompt': self.system_prompt,
             'timeout': self.timeout,
             'stream': self.stream,
-            'filter_thinking': self.filter_thinking
+            'filter_thinking': self.filter_thinking,
+            'retry_count': self.retry_count,
+            'log_level': self.log_level,
+            'max_query_plan': self.max_query_plan
         }
     
     @classmethod
@@ -78,7 +102,10 @@ class AIConfig:
             system_prompt=data.get('system_prompt', DEFAULT_SYSTEM_PROMPT),
             timeout=data.get('timeout', DEFAULT_TIMEOUT),
             stream=data.get('stream', True),
-            filter_thinking=data.get('filter_thinking', True)
+            filter_thinking=data.get('filter_thinking', True),
+            retry_count=data.get('retry_count', DEFAULT_RETRY_COUNT),
+            log_level=data.get('log_level', DEFAULT_LOG_LEVEL),
+            max_query_plan=data.get('max_query_plan', DEFAULT_MAX_QUERY_PLAN)
         )
 
 
@@ -100,6 +127,12 @@ def load_from_env() -> dict:
         config['stream'] = os.getenv('AI_STREAM', 'true').lower() == 'true'
     if os.getenv('AI_FILTER_THINKING'):
         config['filter_thinking'] = os.getenv('AI_FILTER_THINKING', 'true').lower() == 'true'
+    if os.getenv('AI_RETRY_COUNT'):
+        config['retry_count'] = int(os.getenv('AI_RETRY_COUNT'))
+    if os.getenv('AI_LOG_LEVEL'):
+        config['log_level'] = os.getenv('AI_LOG_LEVEL').upper()
+    if os.getenv('AI_MAX_QUERY_PLAN'):
+        config['max_query_plan'] = int(os.getenv('AI_MAX_QUERY_PLAN'))
     
     return config
 
