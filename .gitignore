@@ -1,3 +1,19 @@
+# Rust
+/target/
+/target_temp/
+**/*.rs.bk
+*.pdb
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+ai_search_mcp/bin/*
+!ai_search_mcp/bin/.gitkeep
+
+# Kiro specs (local development artifacts)
+.kiro/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -19,17 +35,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+tests/
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.hypothesis/
-
-# IDEs
+# IDE
 .vscode/
 .idea/
-.kiro/
 *.swp
 *.swo
 *~
@@ -37,11 +47,3 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-
-# Environment
-.env
-.venv
-.venv_mcp_test/
-env/
-venv/
-ENV/

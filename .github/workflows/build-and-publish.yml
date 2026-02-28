@@ -1,0 +1,143 @@
+name: Build and Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-binaries:
+    name: Build ${{ matrix.platform }} binary
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            target: x86_64-unknown-linux-gnu
+            binary: ai-search-mcp-linux
+          - os: windows-latest
+            platform: windows
+            target: x86_64-pc-windows-msvc
+            binary: ai-search-mcp.exe
+          - os: macos-latest
+            platform: macos
+            target: x86_64-apple-darwin
+            binary: ai-search-mcp-macos
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+      
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      - name: Prepare binary
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            cp target/${{ matrix.target }}/release/ai-search-mcp.exe artifacts/${{ matrix.binary }}
+          else
+            cp target/${{ matrix.target }}/release/ai-search-mcp artifacts/${{ matrix.binary }}
+            chmod +x artifacts/${{ matrix.binary }}
+          fi
+      
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}
+          path: artifacts/${{ matrix.binary }}
+
+  build-wheels:
+    name: Build Python wheel for ${{ matrix.platform }}
+    needs: build-binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            binary: ai-search-mcp-linux
+          - os: windows-latest
+            platform: windows
+            binary: ai-search-mcp.exe
+          - os: macos-latest
+            platform: macos
+            binary: ai-search-mcp-macos
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}
+          path: ai_search_mcp/bin/
+      
+      - name: Set binary permissions
+        if: matrix.platform != 'windows'
+        run: chmod +x ai_search_mcp/bin/${{ matrix.binary }}
+      
+      - name: Install build dependencies
+        run: python -m pip install --upgrade build
+      
+      - name: Build wheel
+        run: python -m build --wheel
+      
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform }}
+          path: dist/*.whl
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ai-search-mcp
+    
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist/
+          merge-multiple: true
+      
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  upload-release-assets:
+    name: Upload binaries to release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: binaries/
+          merge-multiple: true
+      
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: binaries/*
