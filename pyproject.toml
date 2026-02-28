@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-search-mcp"
-version = "1.2.3"
+dynamic = ["version"]
 description = "通用 AI 搜索 MCP 服务器，支持任何兼容 OpenAI API 格式的 AI 模型"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -48,3 +48,7 @@ include = [
     "/README.md",
     "/LICENSE",
 ]
+
+[tool.hatch.version]
+source = "code"
+path = "ai_search_mcp/__about__.py"

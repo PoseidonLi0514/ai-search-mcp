@@ -87,7 +87,7 @@ impl MCPServer {
     }
     
     pub async fn run(&self) -> Result<()> {
-        eprintln!("启动 AI Search MCP Server v1.2.0");
+        eprintln!("启动 AI Search MCP Server v{}", env!("CARGO_PKG_VERSION"));
         eprintln!("API URL: {}", self.config.api_url);
         eprintln!("模型: {}", self.config.model_id);
         eprintln!("流式响应: {}", self.config.stream);
@@ -159,7 +159,7 @@ impl MCPServer {
             },
             server_info: ServerInfoDetails {
                 name: "ai-search-mcp".to_string(),
-                version: "1.2.0".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
             },
         }).unwrap()
     }

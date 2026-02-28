@@ -72,16 +72,7 @@ uvx ai-search-mcp
 # 使用 pip 卸载
 pip uninstall ai-search-mcp
 
-# uvx 不需要卸载，每次运行都是独立环境
-
-## 命令行工具
-
-```bash
-# 查看版本
-ai-search-mcp --version
-
-# 验证配置
-ai-search-mcp --validate-config
+# uvx 不需要卸载,每次运行都是独立环境
 ```
 
 #### 跨平台编译
@@ -97,6 +88,16 @@ cargo build --release --target x86_64-unknown-linux-gnu
 cargo build --release --target x86_64-apple-darwin
 ```
 
+## 命令行工具
+
+```bash
+# 查看版本
+ai-search-mcp --version
+
+# 验证配置（在配置完成后使用）
+ai-search-mcp --validate-config
+```
+
 ## 快速开始
 
 编辑配置文件（Kiro IDE: `.kiro/settings/mcp.json` | Claude Desktop: `claude_desktop_config.json`）:
@@ -105,19 +106,43 @@ cargo build --release --target x86_64-apple-darwin
 {
   "mcpServers": {
     "ai-search": {
-      "command": "uvx",  // 使用 uvx（推荐）
-      "args": ["ai-search-mcp"],  // 或使用绝对路径: "/path/to/ai-search-mcp"
+      "command": "uvx",
+      "args": ["ai-search-mcp"],
       "env": {
         "AI_API_URL": "http://localhost:10000",
         "AI_API_KEY": "your-api-key",
         "AI_MODEL_ID": "搜索模型ID",
         "AI_ANALYSIS_MODEL_ID": "分析模型ID",
-        "AI_TIMEOUT": "60",
+        "AI_TIMEOUT": "180",
         "AI_STREAM": "true",
         "AI_FILTER_THINKING": "true",
         "AI_RETRY_COUNT": "1",
         "AI_LOG_LEVEL": "INFO",
-        "AI_MAX_QUERY_PLAN": "3"
+        "AI_MAX_QUERY_PLAN": "5"
+      }
+    }
+  }
+}
+```
+
+针对诸如Cherry Studio有内部缓存，无法更新新版，等等问题的，可以使用本地最新编译的版本
+```
+{
+  "mcpServers": {
+    "ai-search": {
+      "command": "举例 D:/GitHub/MCP/ai-search-mcp/target/release/ai-search-mcp.exe",
+      "args": [],
+      "env": {
+        "AI_API_URL": "http://localhost:10000",
+        "AI_API_KEY": "your-api-key",
+        "AI_MODEL_ID": "搜索模型ID",
+        "AI_ANALYSIS_MODEL_ID": "分析模型ID",
+        "AI_TIMEOUT": "180",
+        "AI_STREAM": "true",
+        "AI_FILTER_THINKING": "true",
+        "AI_RETRY_COUNT": "1",
+        "AI_LOG_LEVEL": "INFO",
+        "AI_MAX_QUERY_PLAN": "10"
       }
     }
   }
@@ -192,15 +217,6 @@ web_search("[SUB_QUERY] 北京周边站点到上海买长乘短策略")
 **性能提升**：Rust 版本并发执行 3 个子查询，总耗时约 1 秒（Python 顺序执行约 3 秒）
 
 ---
-## 命令行工具
-
-```bash
-# 查看版本
-ai-search-mcp --version
-
-# 验证配置
-ai-search-mcp --validate-config
-```
 
 ## 支持的服务
 

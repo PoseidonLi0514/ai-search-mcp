@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-__version__ = "1.2.3"
+from .__about__ import __version__
 
 
 def get_binary_name():
