@@ -2,10 +2,13 @@
 use axum::{
     extract::{Query, State},
     http::StatusCode,
+    response::sse::{Event, Sse},
     Json,
 };
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::error_codes;
 use crate::models::{AppState, JsonRpcRequest, JsonRpcResponse, JsonRpcError};
@@ -80,32 +83,82 @@ pub async fn mcp_handler(
     StatusCode::ACCEPTED
 }
 
-// MCP 协议处理器（HTTP 模式 - 支持 Cherry Studio 的 streamableHttp）
+// MCP 协议处理器（HTTP 模式 - Streamable HTTP，支持 SSE 流式响应 + 心跳保活）
 pub async fn mcp_http_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<JsonRpcRequest>,
-) -> Result<Json<JsonRpcResponse>, (StatusCode, Json<JsonRpcResponse>)> {
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+
     let request_id = uuid::Uuid::new_v4();
-    
-    tracing::info!("MCP HTTP 请求: method={}, id={:?} [{}]", 
-        request.method, request.id, request_id);
-    
-    // 对于非 tools/call 请求，同步返回
-    // 对于 tools/call，也同步返回（Cherry Studio 会等待）
-    let response = if request.method == "tools/call" {
-        handle_tools_call(&state, request).await
-    } else {
-        handle_mcp_request(request).await
-    };
-    
-    tracing::info!("MCP HTTP 响应: method={}, status={}, id={:?} [{}]", 
-        response.jsonrpc, 
-        if response.error.is_some() { "error" } else { "success" },
-        response.id, 
-        request_id);
-    
-    // 总是返回 200 OK，错误信息在 JSON 中
-    Ok(Json(response))
+    let method = request.method.clone();
+
+    tracing::info!("MCP HTTP 请求: method={}, id={:?} [{}]",
+        method, request.id, request_id);
+
+    // 非 tools/call 请求：同步 JSON 返回（initialize、tools/list 等很快）
+    if method != "tools/call" {
+        let response = handle_mcp_request(request).await;
+        tracing::info!("MCP HTTP 响应: method={}, status={}, id={:?} [{}]",
+            response.jsonrpc,
+            if response.error.is_some() { "error" } else { "success" },
+            response.id,
+            request_id);
+        return Json(response).into_response();
+    }
+
+    // tools/call 请求：SSE 流式响应 + 心跳保活
+    let config = state.config.read().await;
+    let heartbeat_secs = config.http_sse_heartbeat;
+    drop(config);
+
+    let (tx, rx) = mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
+
+    // 心跳任务：定期发送 SSE 注释保持连接活跃
+    let heartbeat_tx = tx.clone();
+    let heartbeat_task = tokio::spawn(async move {
+        let mut count = 0u64;
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(heartbeat_secs)).await;
+            count += 1;
+            let comment = format!("heartbeat {}", count * heartbeat_secs);
+            let event = Event::default().comment(&comment);
+            if heartbeat_tx.send(Ok(event)).await.is_err() {
+                break;
+            }
+            tracing::trace!("HTTP 流式心跳 #{}", count);
+        }
+    });
+
+    // 搜索任务：执行搜索并推送进度和最终结果
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        let response = handle_tools_call_with_progress(&state_clone, request, tx.clone()).await;
+
+        tracing::info!("MCP HTTP 响应: method={}, status={}, id={:?} [{}]",
+            response.jsonrpc,
+            if response.error.is_some() { "error" } else { "success" },
+            response.id,
+            request_id);
+
+        // 推送最终结果
+        let response_json = serde_json::to_string(&response).unwrap_or_default();
+        let result_event = Event::default()
+            .event("message")
+            .data(response_json);
+        let _ = tx.send(Ok(result_event)).await;
+
+        // 搜索完成，终止心跳
+        heartbeat_task.abort();
+    });
+
+    Sse::new(ReceiverStream::new(rx))
+        .keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(std::time::Duration::from_secs(heartbeat_secs))
+                .text("ping")
+        )
+        .into_response()
 }
 
 async fn handle_mcp_request(request: JsonRpcRequest) -> JsonRpcResponse {
