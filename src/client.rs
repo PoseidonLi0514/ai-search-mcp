@@ -553,12 +553,12 @@ impl AIClient {
         struct SubQuery {
             subquestion: String,
         }
-        
+
         // 尝试解析为字符串数组
-        let sub_queries: Vec<String> = if let Ok(queries) = serde_json::from_str::<Vec<String>>(cleaned) {
+        let sub_queries: Vec<String> = if let Ok(queries) = serde_json::from_str::<Vec<String>>(&cleaned) {
             tracing::debug!("成功解析为字符串数组格式");
             queries
-        } else if let Ok(queries) = serde_json::from_str::<Vec<SubQuery>>(cleaned) {
+        } else if let Ok(queries) = serde_json::from_str::<Vec<SubQuery>>(&cleaned) {
             // 尝试解析为对象数组格式
             tracing::debug!("成功解析为对象数组格式");
             queries.into_iter().map(|q| q.subquestion).collect()
