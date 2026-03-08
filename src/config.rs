@@ -21,7 +21,7 @@ pub const DEFAULT_SYSTEM_PROMPT: &str = r#"你是一个专业的搜索助手,擅
 - 尽可能全面详细没有遗漏的回答用户问题
 - 时间相关信息必须基于上述当前时间判断"#;
 
-pub const DEFAULT_SPLIT_PROMPT: &str = "你是查询拆分助手。只返回 JSON 数组，不要任何解释、标记或其他文本。直接输出 JSON 数组。";
+pub const DEFAULT_SPLIT_PROMPT: &str = "你是查询拆分助手。根据查询的复杂程度智能判断需要拆分的子问题数量：简单事实性问题（如\"谁是美国总统\"）只需1个子问题即原样返回，中等复杂度问题拆分2-5个，只有真正复杂的多维度问题才使用更多子问题。只返回 JSON 数组，不要任何解释、标记或其他文本。直接输出 JSON 数组。";
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AIConfig {

@@ -14,9 +14,8 @@ pub fn cors_layer() -> CorsLayer {
     
     // 从环境变量读取允许的域名，默认拒绝所有（生产环境安全）
     let allow_origin = if let Ok(origins) = std::env::var("AI_CORS_ORIGINS") {
-        if origins.to_lowercase() == "any" {
-            // 显式设置为 "any" 才允许所有域名（开发模式）
-            tracing::warn!("CORS 允许所有域名（仅用于开发环境）");
+        if origins.trim() == "*" || origins.to_lowercase() == "any" {
+            tracing::info!("CORS 允许所有域名");
             AllowOrigin::any()
         } else {
             // 生产环境：限制特定域名

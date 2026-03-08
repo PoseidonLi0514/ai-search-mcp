@@ -500,11 +500,11 @@ impl AIClient {
     /// 调用 AI 模型将查询拆分成多个子问题
     async fn split_query(&self, query: &str, count: u32) -> Result<Vec<String>> {
         let user_prompt = format!(
-            r#"将查询拆分成 {} 个子问题，返回 JSON 数组。
+            r#"根据以下查询的复杂程度，将其拆分成最合适数量的子问题（最多 {} 个）。简单问题只需1个子问题，复杂问题才需要更多。返回 JSON 数组。
 
 查询: {}
 
-只返回 JSON 数组，格式: ["子问题1", "子问题2", "子问题3"]"#,
+只返回 JSON 数组，格式: ["子问题1", "子问题2"]"#,
             count, query
         );
         
@@ -543,8 +543,11 @@ impl AIClient {
             .trim_end_matches("```")
             .trim();
         
+        // 修复 AI 返回的 JSON 中字符串值内含有原始换行符导致解析失败的问题
+        let cleaned = cleaned.replace('\n', "").replace('\r', "");
+
         tracing::debug!("清理后的响应: {}", cleaned);
-        
+
         // 定义子查询对象结构（用于解析 {"subquestion": "..."} 格式）
         #[derive(Deserialize)]
         struct SubQuery {
@@ -568,9 +571,7 @@ impl AIClient {
             return Err(AISearchError::Protocol("未能拆分出任何子查询".into()));
         }
         
-        if sub_queries.len() != count as usize {
-            warn!("期望 {} 个子查询，实际得到 {}，继续执行", count, sub_queries.len());
-        }
+        info!("AI 智能拆分: 最多 {} 个维度，实际拆分为 {} 个子查询", count, sub_queries.len());
         
         // 为每个子查询添加 [SUB_QUERY] 前缀
         let prefixed_queries: Vec<String> = sub_queries
