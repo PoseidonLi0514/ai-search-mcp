@@ -114,19 +114,20 @@ pub async fn mcp_http_handler(
 
     let (tx, rx) = mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
 
-    // 心跳任务：定期发送 SSE 注释保持连接活跃
+    // 立即发送一个空数据事件，确保客户端收到响应头
+    let init_tx = tx.clone();
+    let _ = init_tx.send(Ok(Event::default().data(""))).await;
+
+    // 心跳任务：定期发送空数据事件保持连接活跃
     let heartbeat_tx = tx.clone();
     let heartbeat_task = tokio::spawn(async move {
-        let mut count = 0u64;
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(heartbeat_secs)).await;
-            count += 1;
-            let comment = format!("heartbeat {}", count * heartbeat_secs);
-            let event = Event::default().comment(&comment);
+            // 发送空数据事件（比 comment 更容易被客户端识别为活跃连接）
+            let event = Event::default().data("");
             if heartbeat_tx.send(Ok(event)).await.is_err() {
                 break;
             }
-            tracing::trace!("HTTP 流式心跳 #{}", count);
         }
     });
 
